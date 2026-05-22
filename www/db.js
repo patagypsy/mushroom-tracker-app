@@ -11,8 +11,14 @@ const db = {
 
   async createBatch(data) {
     const year = new Date().getFullYear();
-    const count = await _db.batches.count();
-    const batchId = 'B-' + year + '-' + String(count).padStart(3, '0');
+    const last = await _db.batches.orderBy('id').last();
+    let nextNum = 0;
+    if (last) {
+      const parts = last.batchId.split('-');
+      const lastNum = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(lastNum)) nextNum = lastNum + 1;
+    }
+    const batchId = 'B-' + year + '-' + String(nextNum).padStart(3, '0');
     await _db.batches.add({
       batchId,
       pilzsorte:        data.pilzsorte,
@@ -20,7 +26,7 @@ const db = {
       antal_bags:       Number(data.antal_bags),
       inkubation_start: data.inkubation_start,
       fk_datum:         data.fk_datum || '',
-      kund:             data.kunde || '',
+      kunde:            data.kunde || '',
       odlare:           data.odlare || '',
       skapad_den:       new Date().toISOString()
     });
@@ -28,8 +34,14 @@ const db = {
   },
 
   async logHarvest(data) {
-    const count = await _db.harvests.count();
-    const harvestId = 'H-' + String(count).padStart(3, '0');
+    const last = await _db.harvests.orderBy('id').last();
+    let nextNum = 0;
+    if (last) {
+      const parts = last.harvestId.split('-');
+      const lastNum = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(lastNum)) nextNum = lastNum + 1;
+    }
+    const harvestId = 'H-' + String(nextNum).padStart(3, '0');
     await _db.harvests.add({
       harvestId,
       batchId:        data.batchId,
@@ -58,7 +70,7 @@ const db = {
       antal_bags:       batch.antal_bags,
       inkubation_start: batch.inkubation_start,
       fk_datum:         batch.fk_datum,
-      kunde:            batch.kund,
+      kunde:            batch.kunde,
       odlare:           batch.odlare
     };
   },
@@ -137,12 +149,23 @@ const db = {
   },
 
   async importJSON(json) {
-    const data = JSON.parse(json);
+    let data;
+    try {
+      data = JSON.parse(json);
+    } catch (err) {
+      throw new Error('Ogiltig JSON-fil: ' + err.message);
+    }
+
     const existingBatchIds   = new Set((await _db.batches.toArray()).map(function(b) { return b.batchId; }));
     const existingHarvestIds = new Set((await _db.harvests.toArray()).map(function(h) { return h.harvestId; }));
 
-    const newBatches  = (data.batches  || []).filter(function(b) { return !existingBatchIds.has(b.batchId); });
-    const newHarvests = (data.harvests || []).filter(function(h) { return !existingHarvestIds.has(h.harvestId); });
+    const newBatches = (data.batches || [])
+      .filter(function(b) { return !existingBatchIds.has(b.batchId); })
+      .map(function(b) { const r = Object.assign({}, b); delete r.id; return r; });
+
+    const newHarvests = (data.harvests || [])
+      .filter(function(h) { return !existingHarvestIds.has(h.harvestId); })
+      .map(function(h) { const r = Object.assign({}, h); delete r.id; return r; });
 
     await _db.batches.bulkAdd(newBatches);
     await _db.harvests.bulkAdd(newHarvests);
