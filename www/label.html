@@ -7,6 +7,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f4f0; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; gap: 16px; }
+    .back-btn { align-self: flex-start; background: none; border: none; color: #2d7a2d; font-size: 0.95rem; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 4px; }
     .size-selector { display: flex; gap: 8px; font-size: 0.85rem; align-items: center; color: #555; }
     .size-selector select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.85rem; }
     .label { background: white; border: 1px solid #ddd; border-radius: 6px; padding: 10px; width: 236px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -25,6 +26,7 @@
   </style>
 </head>
 <body>
+  <button class="back-btn" onclick="history.back()">← Tillbaka</button>
   <div id="loading"><div class="spinner"></div></div>
 
   <div id="content" style="display:none">
@@ -45,10 +47,11 @@
       <div class="meta" id="meta"></div>
     </div>
 
-    <button class="btn" onclick="window.print()">Skriv ut / Etikettskrivare</button>
-    <button id="share-btn" onclick="shareLabel()" style="display:none;margin-top:8px;padding:10px 20px;background:#555;color:white;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer">
+    <button id="print-btn" class="btn" onclick="window.print()">Skriv ut / Etikettskrivare</button>
+    <button id="share-btn" onclick="shareLabel()" style="display:none;margin-top:8px;padding:12px 24px;background:#2d7a2d;color:white;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer">
       Dela QR-kod
-</button>
+    </button>
+    <p id="screenshot-hint" style="display:none;font-size:0.85rem;color:#666;text-align:center;margin-top:4px">Håll inne på QR-koden för att spara bilden</p>
     <p class="hint" style="font-size:0.8rem;color:#aaa">Stäng fliken när du är klar</p>
   </div>
 
@@ -74,7 +77,6 @@
         const harvestUrl = BASE_URL + 'harvest.html?batch=' + encodeURIComponent(BATCH_ID);
         const qrEl = document.getElementById('qr');
         qrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(harvestUrl);
-        qrEl.onload = function() { setTimeout(function() { window.print(); }, 400); };
       })
       .catch(function() {
         document.getElementById('loading').innerHTML = '<p style="color:#c00">Kunde inte ladda batch.</p>';
@@ -92,7 +94,12 @@
       }
     }
 
-    // Show share button only if Web Share API is available
+    // On Android: hide print button, show share + screenshot hint
+    const isAndroid = /android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      document.getElementById('print-btn').style.display = 'none';
+      document.getElementById('screenshot-hint').style.display = 'block';
+    }
     if (navigator.share) {
       document.getElementById('share-btn').style.display = 'inline-block';
     }

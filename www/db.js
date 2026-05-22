@@ -148,6 +148,14 @@ const db = {
     return JSON.stringify({ batches, harvests }, null, 2);
   },
 
+  async deleteBatch(batchId) {
+    const batch = await _db.batches.where('batchId').equals(batchId).first();
+    if (!batch) return false;
+    await _db.harvests.where('batchId').equals(batchId).delete();
+    await _db.batches.delete(batch.id);
+    return true;
+  },
+
   async importJSON(json) {
     let data;
     try {
