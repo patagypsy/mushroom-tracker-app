@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mina skördar</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px 16px; background: #f0f4f0; color: #1a1a1a; }
+    a.back { display: inline-block; margin-bottom: 20px; font-size: 0.9rem; color: #2d7a2d; font-weight: 600; text-decoration: none; }
+    h1 { font-size: 1.4rem; margin: 0 0 4px; color: #2d5a2d; }
+    .odlare-name { font-size: 0.85rem; color: #888; margin-bottom: 20px; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+    .stat-box { background: white; border-radius: 10px; padding: 14px; text-align: center; }
+    .stat-box .value { font-size: 1.8rem; font-weight: 700; color: #2d5a2d; }
+    .stat-box .label { font-size: 0.75rem; color: #888; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .stat-box.wide { grid-column: span 2; }
+    .sort-select-wrap { margin-bottom: 20px; }
+    .sort-select-wrap label { display: block; font-size: 0.8rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .sort-select-wrap select { width: 100%; padding: 10px 12px; font-size: 1rem; border: 1px solid #d0d8d0; border-radius: 8px; background: white; font-family: inherit; color: #1a1a1a; }
+    .sort-select-wrap select:focus { outline: none; border-color: #2d7a2d; }
+    .sort-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .sort-stats .stat-box { background: #eaf4ea; }
+    .sort-stats .stat-box .value { font-size: 1.5rem; }
+    h2 { font-size: 1rem; color: #555; margin: 0 0 10px; }
+    .batch-row { background: white; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+    .batch-row .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .batch-row .id { font-size: 0.75rem; color: #aaa; }
+    .batch-row .sort { font-weight: 600; }
+    .batch-row .weight { font-size: 1.1rem; font-weight: 700; color: #2d5a2d; }
+    .batch-row .meta { display: flex; gap: 12px; font-size: 0.75rem; color: #999; flex-wrap: wrap; }
+    .empty { text-align: center; color: #aaa; padding: 32px 0; font-size: 0.9rem; }
+    .spinner { margin: 60px auto; border: 4px solid #d0d8d0; border-top: 4px solid #2d7a2d; border-radius: 50%; width: 44px; height: 44px; animation: spin 0.8s linear infinite; }
+    .sort-spinner { margin: 20px auto; border: 3px solid #d0d8d0; border-top: 3px solid #2d7a2d; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hidden { display: none; }
+    .io-section { margin-top: 32px; border-top: 1px solid #d0d8d0; padding-top: 20px; }
+    .io-section h2 { font-size: 0.9rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px; }
+    .btn-io { display: inline-block; padding: 10px 18px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; margin-right: 8px; margin-bottom: 8px; }
+    .btn-export { background: #2d7a2d; color: white; }
+    .btn-import { background: white; color: #2d7a2d; border: 2px solid #2d7a2d; }
+    .io-msg { font-size: 0.85rem; color: #2d7a2d; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <a class="back" href="index.html">← Ny batch</a>
+  <h1>Mina skördar</h1>
+  <p class="odlare-name" id="odlare-label"></p>
+  <div id="loading"><div class="spinner"></div></div>
+
+  <div id="content" class="hidden">
+    <div class="summary">
+      <div class="stat-box"><div class="value" id="total-batches">0</div><div class="label">Batchar</div></div>
+      <div class="stat-box"><div class="value" id="total-harvests">0</div><div class="label">Skördar</div></div>
+      <div class="stat-box wide"><div class="value" id="total-weight">0 g</div><div class="label">Total skörd</div></div>
+    </div>
+
+    <div class="sort-select-wrap">
+      <label>Visa statistik per sort</label>
+      <select id="sort-select" onchange="loadSortStats(this.value)">
+        <option value="">— Välj sort —</option>
+      </select>
+    </div>
+
+    <div id="sort-loading" class="hidden"><div class="sort-spinner"></div></div>
+
+    <div id="sort-section" class="hidden">
+      <div class="sort-stats">
+        <div class="stat-box"><div class="value" id="sort-total-weight">—</div><div class="label">Total skörd</div></div>
+        <div class="stat-box"><div class="value" id="sort-batches">—</div><div class="label">Batchar</div></div>
+        <div class="stat-box"><div class="value" id="sort-yield">—</div><div class="label">g / kg substrat</div></div>
+        <div class="stat-box"><div class="value" id="sort-inkub">—</div><div class="label">Dagar inkubation</div></div>
+      </div>
+      <h2 id="sort-batch-heading">Batchar</h2>
+      <div id="sort-batch-list"></div>
+    </div>
+  </div>
+
+  <div class="io-section">
+    <h2>Säkerhetskopiering</h2>
+    <button class="btn-io btn-export" onclick="exportData()">Exportera data</button>
+    <button class="btn-io btn-import" onclick="document.getElementById('import-file').click()">Importera backup</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
+    <div id="io-msg" class="io-msg hidden"></div>
+  </div>
+
+  <script src="dexie.min.js"></script>
+  <script src="db.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const ODLARE = params.get('odlare') || localStorage.getItem('odlare') || '';
+
+    document.getElementById('odlare-label').textContent = ODLARE;
+
+    db.getGrowerStats(ODLARE)
+      .then(function(data) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').classList.remove('hidden');
+
+        if (!data || data.batches.length === 0) {
+          document.getElementById('sort-select-wrap').classList.add('hidden');
+          return;
+        }
+
+        document.getElementById('total-batches').textContent  = data.totalBatches;
+        document.getElementById('total-harvests').textContent = data.totalHarvests;
+        document.getElementById('total-weight').textContent   = data.totalWeight + ' g';
+
+        const sorts = [];
+        data.batches.forEach(function(b) {
+          if (b.pilzsorte && sorts.indexOf(b.pilzsorte) === -1) sorts.push(b.pilzsorte);
+        });
+
+        const sel = document.getElementById('sort-select');
+        sorts.forEach(function(s) {
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.textContent = s;
+          sel.appendChild(opt);
+        });
+
+        if (sorts.length === 1) {
+          sel.value = sorts[0];
+          loadSortStats(sorts[0]);
+        }
+      })
+      .catch(function() {
+        document.getElementById('loading').innerHTML = '<p style="color:#c00;text-align:center">Kunde inte ladda data.</p>';
+      });
+
+    function loadSortStats(pilzsorte) {
+      if (!pilzsorte) {
+        document.getElementById('sort-section').classList.add('hidden');
+        return;
+      }
+
+      document.getElementById('sort-section').classList.add('hidden');
+      document.getElementById('sort-loading').classList.remove('hidden');
+
+      db.getSortStats(ODLARE, pilzsorte)
+        .then(function(data) {
+          document.getElementById('sort-loading').classList.add('hidden');
+          document.getElementById('sort-section').classList.remove('hidden');
+
+          document.getElementById('sort-total-weight').textContent = data.totalWeight + ' g';
+          document.getElementById('sort-batches').textContent      = data.totalBatches;
+          document.getElementById('sort-yield').textContent        = data.avgYieldPerKg > 0 ? data.avgYieldPerKg : '—';
+          document.getElementById('sort-inkub').textContent        = data.avgInkubDays != null ? data.avgInkubDays : '—';
+          document.getElementById('sort-batch-heading').textContent = pilzsorte + ' — batchar';
+
+          const list = document.getElementById('sort-batch-list');
+          list.innerHTML = '';
+
+          if (!data.batches || data.batches.length === 0) {
+            list.innerHTML = '<div class="empty">Inga batchar hittades.</div>';
+            return;
+          }
+
+          data.batches.forEach(function(b) {
+            const div = document.createElement('div');
+            div.className = 'batch-row';
+            const meta = [];
+            if (b.substrat_kg) meta.push(b.substrat_kg + ' kg substrat');
+            if (b.antal_bags)  meta.push(b.antal_bags + ' bags');
+            if (b.harvests)    meta.push(b.harvests + ' skörd(ar)');
+            if (b.inkub_days != null) meta.push(b.inkub_days + ' dagar inkub.');
+            div.innerHTML =
+              '<div class="top">' +
+                '<div><div class="id">' + b.batchId + '</div><div class="sort">' + b.yieldPerKg + ' g/kg</div></div>' +
+                '<div class="weight">' + b.totalWeight + ' g</div>' +
+              '</div>' +
+              '<div class="meta">' + meta.join(' · ') + '</div>';
+            list.appendChild(div);
+          });
+        })
+        .catch(function() {
+          document.getElementById('sort-loading').classList.add('hidden');
+          document.getElementById('sort-batch-list').innerHTML = '<p style="color:#c00">Kunde inte ladda sortstatistik.</p>';
+          document.getElementById('sort-section').classList.remove('hidden');
+        });
+    }
+
+    async function exportData() {
+      const json = await db.exportJSON();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'mushroom-tracker-backup.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function importData(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const text = await file.text();
+      try {
+        const result = await db.importJSON(text);
+        const msg = document.getElementById('io-msg');
+        msg.textContent = 'Importerat: ' + result.addedBatches + ' batchar, ' + result.addedHarvests + ' skördar.';
+        msg.classList.remove('hidden');
+        setTimeout(function() { msg.classList.add('hidden'); }, 4000);
+      } catch (err) {
+        alert('Importfel: ' + err.message);
+      }
+      input.value = '';
+    }
+  </script>
+</body>
+</html>
