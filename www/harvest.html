@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Registrera skörd</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px 16px; background: #f0f4f0; color: #1a1a1a; }
+    .batch-card { background: white; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; border-left: 4px solid #2d7a2d; }
+    .batch-card .id { font-size: 0.8rem; color: #888; }
+    .batch-card .name { font-size: 1.2rem; font-weight: 700; color: #2d5a2d; }
+    .batch-card .details { font-size: 0.85rem; color: #666; margin-top: 4px; }
+    .fk-card { background: #fff8e6; border: 1px solid #f0c040; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+    .fk-card p { font-size: 0.9rem; color: #886600; margin: 0 0 10px; font-weight: 600; }
+    .fk-row { display: flex; gap: 8px; align-items: center; }
+    .fk-row input { flex: 1; }
+    .btn-fk { padding: 10px 16px; background: #f0c040; color: #5a4000; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .fk-set { font-size: 0.85rem; color: #2d7a2d; margin: 4px 0 0; }
+    h1 { font-size: 1.3rem; margin: 0 0 20px; color: #2d5a2d; }
+    label { display: block; margin-top: 16px; font-size: 0.85rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+    input, textarea { width: 100%; padding: 12px; font-size: 1rem; border: 1px solid #d0d8d0; border-radius: 8px; margin-top: 4px; background: white; font-family: inherit; }
+    input:focus, textarea:focus { outline: none; border-color: #2d7a2d; }
+    textarea { height: 80px; resize: vertical; }
+    .btn { width: 100%; padding: 14px; background: #2d7a2d; color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: 600; margin-top: 28px; cursor: pointer; }
+    .btn:active { background: #256025; }
+    .btn-secondary { background: white; color: #2d7a2d; border: 2px solid #2d7a2d; margin-top: 12px; }
+    .hidden { display: none; }
+    .spinner { margin: 40px auto; border: 4px solid #d0d8d0; border-top: 4px solid #2d7a2d; border-radius: 50%; width: 44px; height: 44px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #success { text-align: center; padding: 32px 0; }
+    #success .check { font-size: 3.5rem; margin-bottom: 8px; }
+    #success p { font-size: 1rem; color: #555; }
+    .harvest-id { font-weight: 700; color: #2d5a2d; }
+  </style>
+</head>
+<body>
+  <div class="batch-card">
+    <div class="id" id="batch-id-label">Laddar...</div>
+    <div class="name" id="batch-name"></div>
+    <div class="details" id="batch-details"></div>
+  </div>
+
+  <div id="fk-card" class="fk-card hidden">
+    <p>Fruktningskammare — inte satt ännu</p>
+    <div class="fk-row">
+      <input type="date" id="fk-datum-input">
+      <button class="btn-fk" onclick="saveFkDatum()">Sätt datum</button>
+    </div>
+    <p id="fk-saved" class="fk-set hidden">✓ FK-datum sparat</p>
+  </div>
+
+  <div id="form-section">
+    <h1>Registrera skörd</h1>
+    <label>Vikt (g) *</label>
+    <input type="number" id="vikt_g" placeholder="t.ex. 340" inputmode="numeric">
+    <label>Datum *</label>
+    <input type="date" id="datum">
+    <label>Anteckningar</label>
+    <textarea id="anteckningar" placeholder="t.ex. Flush 1, små huvuden..."></textarea>
+    <button class="btn" onclick="submitHarvest()">Spara skörd</button>
+  </div>
+
+  <div id="loading" class="hidden"><div class="spinner"></div></div>
+
+  <div id="success" class="hidden">
+    <div class="check">&#10003;</div>
+    <p>Skörd sparad!</p>
+    <p class="harvest-id" id="harvest-id-display"></p>
+    <button class="btn btn-secondary" onclick="logAnother()">Registrera ytterligare skörd</button>
+  </div>
+
+  <script src="dexie.min.js"></script>
+  <script src="db.js"></script>
+  <script>
+    const BATCH_ID = new URLSearchParams(window.location.search).get('batch') || '';
+
+    document.getElementById('datum').value = new Date().toISOString().split('T')[0];
+    document.getElementById('fk-datum-input').value = new Date().toISOString().split('T')[0];
+    document.getElementById('batch-id-label').textContent = BATCH_ID;
+
+    // Load batch info
+    db.getBatchInfo(BATCH_ID).then(function(info) {
+      if (info && info.batchId) {
+        document.getElementById('batch-name').textContent = info.pilzsorte;
+        document.getElementById('batch-details').textContent =
+          info.substrat_kg + ' kg substrat' + (info.kunde ? '  ·  Kund: ' + info.kunde : '');
+        if (!info.fk_datum) {
+          document.getElementById('fk-card').classList.remove('hidden');
+        }
+      } else {
+        document.getElementById('batch-name').textContent = 'Batch hittades inte';
+      }
+    }).catch(function() {
+      document.getElementById('batch-name').textContent = 'Kunde inte ladda';
+    });
+
+    async function saveFkDatum() {
+      const fkDate = document.getElementById('fk-datum-input').value;
+      if (!fkDate) { alert('Välj ett datum.'); return; }
+      try {
+        await db.setFkDatum(BATCH_ID, fkDate);
+        document.getElementById('fk-card').querySelector('p').classList.add('hidden');
+        document.getElementById('fk-card').querySelector('.fk-row').classList.add('hidden');
+        document.getElementById('fk-saved').classList.remove('hidden');
+      } catch (err) {
+        alert('Fel: ' + err.message);
+      }
+    }
+
+    async function submitHarvest() {
+      const vikt_g = document.getElementById('vikt_g').value.trim();
+      const datum  = document.getElementById('datum').value;
+      if (!vikt_g || !datum) { alert('Fyll i vikt och datum.'); return; }
+
+      document.getElementById('form-section').classList.add('hidden');
+      document.getElementById('loading').classList.remove('hidden');
+
+      try {
+        const result = await db.logHarvest({
+          batchId: BATCH_ID,
+          datum, vikt_g,
+          anteckningar: document.getElementById('anteckningar').value.trim()
+        });
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('fk-card').classList.add('hidden');
+        document.getElementById('success').classList.remove('hidden');
+        document.getElementById('harvest-id-display').textContent = result.harvestId;
+      } catch (err) {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('form-section').classList.remove('hidden');
+        alert('Fel: ' + err.message);
+      }
+    }
+
+    function logAnother() {
+      document.getElementById('success').classList.add('hidden');
+      document.getElementById('form-section').classList.remove('hidden');
+      document.getElementById('vikt_g').value = '';
+      document.getElementById('anteckningar').value = '';
+      document.getElementById('datum').value = new Date().toISOString().split('T')[0];
+    }
+  </script>
+</body>
+</html>
