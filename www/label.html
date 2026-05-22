@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Etikett</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f4f0; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; gap: 16px; }
+    .size-selector { display: flex; gap: 8px; font-size: 0.85rem; align-items: center; color: #555; }
+    .size-selector select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.85rem; }
+    .label { background: white; border: 1px solid #ddd; border-radius: 6px; padding: 10px; width: 236px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .label img { width: 140px; height: 140px; }
+    .label .batch-id { font-size: 1rem; font-weight: 700; letter-spacing: 1px; }
+    .label .sort { font-size: 0.85rem; color: #444; }
+    .label .meta { font-size: 0.7rem; color: #888; text-align: center; line-height: 1.5; }
+    .btn { padding: 12px 24px; background: #2d7a2d; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .spinner { margin: 40px auto; border: 4px solid #d0d8d0; border-top: 4px solid #2d7a2d; border-radius: 50%; width: 44px; height: 44px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media print {
+      body { background: white; padding: 0; }
+      .size-selector, .btn, .hint { display: none; }
+      .label { border: none; border-radius: 0; padding: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading"><div class="spinner"></div></div>
+
+  <div id="content" style="display:none">
+    <div class="size-selector">
+      Etikettsstorlek:
+      <select onchange="setSize(this.value)">
+        <option value="62">62mm (Brother QL)</option>
+        <option value="40">40×30mm (Niimbot / Phomemo)</option>
+        <option value="36">36mm (Dymo)</option>
+        <option value="custom">Anpassad</option>
+      </select>
+    </div>
+
+    <div class="label" id="label">
+      <img id="qr" src="" alt="QR">
+      <div class="batch-id" id="batch-id"></div>
+      <div class="sort" id="sort"></div>
+      <div class="meta" id="meta"></div>
+    </div>
+
+    <button class="btn" onclick="window.print()">Skriv ut / Etikettskrivare</button>
+    <button id="share-btn" onclick="shareLabel()" style="display:none;margin-top:8px;padding:10px 20px;background:#555;color:white;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer">
+      Dela QR-kod
+</button>
+    <p class="hint" style="font-size:0.8rem;color:#aaa">Stäng fliken när du är klar</p>
+  </div>
+
+  <script src="dexie.min.js"></script>
+  <script src="db.js"></script>
+  <script>
+    const BATCH_ID = new URLSearchParams(window.location.search).get('batch') || '';
+    const BASE_URL = window.location.href.split('?')[0].replace(/label\.html$/, '');
+
+    db.getBatchInfo(BATCH_ID)
+      .then(function(info) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'flex';
+        document.getElementById('content').style.flexDirection = 'column';
+        document.getElementById('content').style.alignItems = 'center';
+        document.getElementById('content').style.gap = '16px';
+
+        document.getElementById('batch-id').textContent = BATCH_ID;
+        document.getElementById('sort').textContent     = info ? info.pilzsorte : '';
+        document.getElementById('meta').textContent     =
+          (info ? info.inkubation_start + '\n' + (info.odlare || '') : '');
+
+        const harvestUrl = BASE_URL + 'harvest.html?batch=' + encodeURIComponent(BATCH_ID);
+        const qrEl = document.getElementById('qr');
+        qrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(harvestUrl);
+        qrEl.onload = function() { setTimeout(function() { window.print(); }, 400); };
+      })
+      .catch(function() {
+        document.getElementById('loading').innerHTML = '<p style="color:#c00">Kunde inte ladda batch.</p>';
+      });
+
+    function setSize(size) {
+      const label = document.getElementById('label');
+      const qr    = document.getElementById('qr');
+      if (size === '62')     { label.style.width = '236px'; qr.style.width = qr.style.height = '140px'; }
+      else if (size === '40') { label.style.width = '151px'; qr.style.width = qr.style.height = '90px'; }
+      else if (size === '36') { label.style.width = '136px'; qr.style.width = qr.style.height = '80px'; }
+      else if (size === 'custom') {
+        const w = prompt('Bredd i mm:', '62');
+        if (w) { const px = Math.round(Number(w) * 3.78); label.style.width = px + 'px'; }
+      }
+    }
+
+    // Show share button only if Web Share API is available
+    if (navigator.share) {
+      document.getElementById('share-btn').style.display = 'inline-block';
+    }
+
+    async function shareLabel() {
+      const batchId = new URLSearchParams(window.location.search).get('batch') || '';
+      const harvestUrl = BASE_URL + 'harvest.html?batch=' + encodeURIComponent(batchId);
+      try {
+        await navigator.share({
+          title: 'Mushroom Tracker — ' + batchId,
+          text: 'Skanna för att registrera skörd',
+          url: harvestUrl
+        });
+      } catch (err) {
+        // User cancelled or share not supported — do nothing
+      }
+    }
+  </script>
+</body>
+</html>
