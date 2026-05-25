@@ -67,6 +67,11 @@
 
   <p class="change-grower"><a onclick="changeGrowerName()" href="#">Byt namn</a></p>
 
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="firebase.js"></script>
+  <script src="dexie.min.js"></script>
+  <script src="db.js"></script>
   <script>
     const grower = localStorage.getItem('odlare');
     if (!grower) {
@@ -77,6 +82,7 @@
       }
     } else {
       document.getElementById('grower-name').textContent = grower;
+      firebaseSync.syncFromFirestore(grower);
     }
 
     function goToDashboard() {

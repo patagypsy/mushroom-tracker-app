@@ -1,4 +1,4 @@
-const CACHE = 'mushroom-tracker-v1';
+const CACHE = 'mushroom-tracker-v2';
 const ASSETS = [
   'index.html',
   'new-batch.html',
@@ -6,6 +6,7 @@ const ASSETS = [
   'stats.html',
   'label.html',
   'db.js',
+  'firebase.js',
   'dexie.min.js',
   'manifest.json'
 ];
