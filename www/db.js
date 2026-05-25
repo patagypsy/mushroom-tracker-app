@@ -19,7 +19,7 @@ const db = {
       if (!isNaN(lastNum)) nextNum = lastNum + 1;
     }
     const batchId = 'B-' + year + '-' + String(nextNum).padStart(3, '0');
-    await _db.batches.add({
+    const batchData = {
       batchId,
       pilzsorte:        data.pilzsorte,
       substrat_kg:      Number(data.substrat_kg),
@@ -29,7 +29,10 @@ const db = {
       kunde:            data.kunde || '',
       odlare:           data.odlare || '',
       skapad_den:       new Date().toISOString()
-    });
+    };
+    await _db.batches.add(batchData);
+    const code = localStorage.getItem('odlare') || '';
+    await firebaseSync.pushBatch(code, batchId, batchData);
     return batchId;
   },
 
@@ -42,14 +45,17 @@ const db = {
       if (!isNaN(lastNum)) nextNum = lastNum + 1;
     }
     const harvestId = 'H-' + String(nextNum).padStart(3, '0');
-    await _db.harvests.add({
+    const harvestData = {
       harvestId,
-      batchId:        data.batchId,
-      datum:          data.datum,
-      vikt_g:         Number(data.vikt_g),
-      anteckningar:   data.anteckningar || '',
+      batchId:         data.batchId,
+      datum:           data.datum,
+      vikt_g:          Number(data.vikt_g),
+      anteckningar:    data.anteckningar || '',
       registrerad_den: new Date().toISOString()
-    });
+    };
+    await _db.harvests.add(harvestData);
+    const code = localStorage.getItem('odlare') || '';
+    await firebaseSync.pushHarvest(code, harvestId, harvestData);
     return { success: true, harvestId };
   },
 
@@ -57,6 +63,8 @@ const db = {
     const batch = await _db.batches.where('batchId').equals(batchId).first();
     if (!batch) return false;
     await _db.batches.update(batch.id, { fk_datum: fkDatum });
+    const code = localStorage.getItem('odlare') || '';
+    await firebaseSync.updateBatch(code, batchId, { fk_datum: fkDatum });
     return true;
   },
 
@@ -151,8 +159,12 @@ const db = {
   async deleteBatch(batchId) {
     const batch = await _db.batches.where('batchId').equals(batchId).first();
     if (!batch) return false;
+    const harvests = await _db.harvests.where('batchId').equals(batchId).toArray();
+    const harvestIds = harvests.map(function(h) { return h.harvestId; });
     await _db.harvests.where('batchId').equals(batchId).delete();
     await _db.batches.delete(batch.id);
+    const code = localStorage.getItem('odlare') || '';
+    await firebaseSync.deleteBatchFromFirestore(code, batchId, harvestIds);
     return true;
   },
 
