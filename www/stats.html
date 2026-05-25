@@ -36,6 +36,7 @@
     .batch-row .actions { display: flex; gap: 8px; margin-top: 10px; }
     .btn-harvest { flex: 1; padding: 8px; background: #2d7a2d; color: white; border: none; border-radius: 7px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; display: block; }
     .btn-delete { padding: 8px 12px; background: white; color: #c00; border: 1.5px solid #c00; border-radius: 7px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+    .btn-qr { padding: 8px 12px; background: white; color: #2d7a2d; border: 1.5px solid #2d7a2d; border-radius: 7px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
     .all-batches-section { margin-top: 24px; }
     .all-batches-section h2 { font-size: 1rem; color: #555; margin: 0 0 10px; }
     .empty { text-align: center; color: #aaa; padding: 32px 0; font-size: 0.9rem; }
@@ -215,6 +216,7 @@
           '<div class="meta">' + b.harvests + ' skörd(ar)</div>' +
           '<div class="actions">' +
             '<a class="btn-harvest" href="' + BASE_URL + 'harvest.html?batch=' + encodeURIComponent(b.batchId) + '">+ Registrera skörd</a>' +
+            '<a class="btn-qr" href="' + BASE_URL + 'label.html?batch=' + encodeURIComponent(b.batchId) + '">Etikett</a>' +
             '<button class="btn-delete" onclick="deleteBatch(\'' + b.batchId + '\')">Ta bort</button>' +
           '</div>';
         list.appendChild(div);
