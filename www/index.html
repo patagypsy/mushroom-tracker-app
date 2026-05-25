@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mushroom Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2d7a2d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mushroom Tracker">
   <style>
     * { box-sizing: border-box; }
     body {
@@ -86,6 +90,11 @@
         localStorage.setItem('odlare', name.trim());
         location.reload();
       }
+    }
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
     }
   </script>
 </body>
